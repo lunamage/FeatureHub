@@ -72,11 +72,13 @@ public class RedisClient {
         Map<String, String> result = new HashMap<>();
         try {
             List<String> values = redisTemplate.opsForValue().multiGet(keys);
-            for (int i = 0; i < keys.size(); i++) {
-                String key = keys.get(i);
-                String value = (i < values.size()) ? values.get(i) : null;
-                if (value != null) {
-                    result.put(key, value);
+            if (values != null) {
+                for (int i = 0; i < keys.size(); i++) {
+                    String key = keys.get(i);
+                    String value = (i < values.size()) ? values.get(i) : null;
+                    if (value != null) {
+                        result.put(key, value);
+                    }
                 }
             }
             return result;

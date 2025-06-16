@@ -12,6 +12,7 @@ import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 import redis.clients.jedis.JedisPoolConfig;
+import java.time.Duration;
 
 /**
  * Redis配置类
@@ -68,7 +69,7 @@ public class RedisConfig {
         config.setMaxTotal(maxActive);
         config.setMaxIdle(maxIdle);
         config.setMinIdle(minIdle);
-        config.setMaxWaitMillis(maxWaitMillis);
+        config.setMaxWait(Duration.ofMillis(maxWaitMillis));
         config.setTestOnBorrow(true);
         config.setTestOnReturn(true);
         config.setTestWhileIdle(true);

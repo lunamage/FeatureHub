@@ -9,6 +9,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Component;
+import org.springframework.lang.NonNull;
+import org.springframework.lang.Nullable;
 import org.springframework.util.concurrent.ListenableFuture;
 import org.springframework.util.concurrent.ListenableFutureCallback;
 
@@ -52,16 +54,21 @@ public class QueryLogPublisher {
 
             future.addCallback(new ListenableFutureCallback<SendResult<String, String>>() {
                 @Override
-                public void onSuccess(SendResult<String, String> result) {
+                public void onSuccess(@Nullable SendResult<String, String> result) {
                     successfulSent.incrementAndGet();
-                    logger.debug("Query log sent successfully for key: {} to topic: {} partition: {} offset: {}",
-                               queryLog.getKey(), queryLogTopic, 
-                               result.getRecordMetadata().partition(),
-                               result.getRecordMetadata().offset());
+                    if (result != null) {
+                        logger.debug("Query log sent successfully for key: {} to topic: {} partition: {} offset: {}",
+                                   queryLog.getKey(), queryLogTopic, 
+                                   result.getRecordMetadata().partition(),
+                                   result.getRecordMetadata().offset());
+                    } else {
+                        logger.debug("Query log sent successfully for key: {} to topic: {}", 
+                                   queryLog.getKey(), queryLogTopic);
+                    }
                 }
 
                 @Override
-                public void onFailure(Throwable throwable) {
+                public void onFailure(@NonNull Throwable throwable) {
                     failedSent.incrementAndGet();
                     logger.error("Failed to send query log for key: {} to topic: {}", 
                                queryLog.getKey(), queryLogTopic, throwable);

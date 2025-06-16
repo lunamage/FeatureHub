@@ -339,8 +339,9 @@ public class MetadataService {
             
             List<String> cachedValues = redisTemplate.opsForValue().multiGet(cacheKeys);
             
-            for (int i = 0; i < keys.size(); i++) {
-                if (i < cachedValues.size() && cachedValues.get(i) != null) {
+            if (cachedValues != null) {
+                for (int i = 0; i < keys.size(); i++) {
+                    if (i < cachedValues.size() && cachedValues.get(i) != null) {
                     try {
                         FeatureMetadata metadata = objectMapper.readValue(cachedValues.get(i), FeatureMetadata.class);
                         results.put(keys.get(i), metadata);
@@ -348,6 +349,7 @@ public class MetadataService {
                         logger.warn("Error parsing cached metadata for key: {}", keys.get(i), e);
                     }
                 }
+            }
             }
         } catch (Exception e) {
             logger.warn("Error batch getting metadata from cache", e);

@@ -11,6 +11,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.jedis.JedisClientConfiguration;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
@@ -18,6 +20,7 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 import redis.clients.jedis.JedisPoolConfig;
 
 import javax.sql.DataSource;
+import java.time.Duration;
 
 /**
  * 数据库和缓存配置
@@ -92,20 +95,26 @@ public class DatabaseConfig {
         poolConfig.setMaxTotal(50);
         poolConfig.setMaxIdle(20);
         poolConfig.setMinIdle(5);
-        poolConfig.setMaxWaitMillis(3000);
+        poolConfig.setMaxWait(Duration.ofMillis(3000));
         poolConfig.setTestOnBorrow(true);
         poolConfig.setTestOnReturn(true);
         poolConfig.setTestWhileIdle(true);
 
-        JedisConnectionFactory factory = new JedisConnectionFactory(poolConfig);
-        factory.setHostName(redisHost);
-        factory.setPort(redisPort);
-        factory.setDatabase(redisDatabase);
-        factory.setTimeout(redisTimeout);
+        RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();
+        config.setHostName(redisHost);
+        config.setPort(redisPort);
+        config.setDatabase(redisDatabase);
         
         if (redisPassword != null && !redisPassword.trim().isEmpty()) {
-            factory.setPassword(redisPassword);
+            config.setPassword(redisPassword);
         }
+
+        JedisClientConfiguration clientConfig = JedisClientConfiguration.builder()
+                .usePooling()
+                .poolConfig(poolConfig)
+                .build();
+
+        JedisConnectionFactory factory = new JedisConnectionFactory(config, clientConfig);
         
         return factory;
     }

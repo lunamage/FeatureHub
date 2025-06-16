@@ -144,40 +144,33 @@ public class MigrationService {
     public MigrationRecord triggerMigration(MigrationTask task) {
         logger.info("手动触发迁移任务: {}", task);
         
-        MigrationRecord record = new MigrationRecord();
-        record.setTaskId(UUID.randomUUID().toString());
-        record.setStartTime(System.currentTimeMillis());
-        record.setSourceStorageType(task.getSourceStorageType());
-        record.setTargetStorageType(task.getTargetStorageType());
-        record.setKeys(task.getKeys());
-        record.setStatus("RUNNING");
+        MigrationRecord record = new MigrationRecord(task.getTaskType());
+        record.setId(UUID.randomUUID().toString());
+        record.setTotalKeys(task.getKeys() != null ? task.getKeys().size() : 0);
         
         try {
             // 根据迁移方向执行不同逻辑
-            if (task.getSourceStorageType() == StorageType.REDIS && 
-                task.getTargetStorageType() == StorageType.KEEWIDB) {
+            if ("HOT_TO_COLD".equals(task.getTaskType())) {
                 // 热转冷
                 record = executeHotToColdMigration(task.getKeys(), record);
-            } else if (task.getSourceStorageType() == StorageType.KEEWIDB && 
-                       task.getTargetStorageType() == StorageType.REDIS) {
+            } else if ("COLD_TO_HOT".equals(task.getTaskType())) {
                 // 冷转热
                 record = executeColdToHotRecall(task.getKeys(), record);
             } else {
-                throw new IllegalArgumentException("不支持的迁移类型: " + 
-                    task.getSourceStorageType() + " -> " + task.getTargetStorageType());
+                throw new IllegalArgumentException("不支持的迁移类型: " + task.getTaskType());
             }
             
             record.setStatus("COMPLETED");
-            record.setEndTime(System.currentTimeMillis());
+            record.setEndTime(java.time.LocalDateTime.now());
             
-            logger.info("手动迁移任务完成: {}", record.getTaskId());
+            logger.info("手动迁移任务完成: {}", record.getId());
             
         } catch (Exception e) {
             record.setStatus("FAILED");
-            record.setEndTime(System.currentTimeMillis());
+            record.setEndTime(java.time.LocalDateTime.now());
             record.setErrorMessage(e.getMessage());
             
-            logger.error("手动迁移任务失败: {}", record.getTaskId(), e);
+            logger.error("手动迁移任务失败: {}", record.getId(), e);
         }
         
         return record;

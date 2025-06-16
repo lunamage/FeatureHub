@@ -11,7 +11,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.util.HashMap;
@@ -238,16 +237,17 @@ public class MetadataServiceClient {
      */
     public boolean isHealthy() {
         try {
-            ResponseEntity<Map> response = getWebClient()
+            ResponseEntity<String> response = getWebClient()
                     .get()
                     .uri("/health")
                     .retrieve()
-                    .toEntity(Map.class)
+                    .toEntity(String.class)
                     .timeout(Duration.ofMillis(2000)) // 健康检查使用较短超时
                     .block();
 
             if (response != null && response.getStatusCode() == HttpStatus.OK) {
-                Map<String, Object> healthInfo = response.getBody();
+                Map<String, Object> healthInfo = objectMapper.readValue(
+                        response.getBody(), new TypeReference<Map<String, Object>>() {});
                 return healthInfo != null && "healthy".equals(healthInfo.get("status"));
             }
             return false;

@@ -1,7 +1,7 @@
 # FeatureHub - 特征中心存储系统
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Java](https://img.shields.io/badge/Java-11+-green.svg)
+![Java](https://img.shields.io/badge/Java-1.8+-green.svg)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-2.7.9-green.svg)
 
 ## 项目简介
@@ -104,8 +104,11 @@ FeatureHub/
 │   ├── controller/                 # REST控制器
 │   └── service/                    # 核心业务逻辑
 ├── feature-data-cleaner/           # 数据清理服务
-│   ├── service/                    # 清理逻辑
-│   └── scheduler/                  # 定时清理
+│   ├── client/                     # 客户端封装  
+│   ├── config/                     # 配置类
+│   ├── domain/                     # 领域实体
+│   ├── publisher/                  # 事件发布器
+│   └── service/                    # 清理逻辑
 └── scripts/                        # 脚本文件
     └── init-db.sql                 # 数据库初始化
 ```
@@ -114,12 +117,12 @@ FeatureHub/
 
 ### 环境要求
 
-- JDK 11+
+- JDK 1.8+
 - Maven 3.6+
-- Docker & Docker Compose
 - MySQL 8.0+
 - Redis 6.0+
 - Apache Kafka 2.8+
+- KeeWiDB (可选，用作冷数据存储)
 
 ### 1. 克隆项目
 
@@ -130,11 +133,24 @@ cd FeatureHub
 
 ### 2. 启动依赖服务
 
-使用Docker Compose启动MySQL、Redis、KeeWiDB和Kafka：
+请根据实际环境启动以下依赖服务：
+- MySQL 8.0+
+- Redis 6.0+
+- KeeWiDB (兼容Redis协议)
+- Apache Kafka 2.8+
+
+如需使用Docker启动，可参考以下命令：
 
 ```bash
-cd scripts
-docker-compose up -d
+# 启动MySQL
+docker run -d --name mysql -e MYSQL_ROOT_PASSWORD=root -p 3306:3306 mysql:8.0
+
+# 启动Redis
+docker run -d --name redis -p 6379:6379 redis:6.0
+
+# 启动Kafka (需要先启动Zookeeper)
+docker run -d --name zookeeper -p 2181:2181 zookeeper:3.7
+docker run -d --name kafka -p 9092:9092 -e KAFKA_ZOOKEEPER_CONNECT=localhost:2181 -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 confluentinc/cp-kafka:latest
 ```
 
 ### 3. 初始化数据库
