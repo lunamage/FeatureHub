@@ -825,16 +825,8 @@ java -Xms2g -Xmx4g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 \
 4. 推送到分支 (`git push origin feature/amazing-feature`)
 5. 开启 Pull Request
 
-## 许可证
-
-本项目采用 MIT 许可证。详见 [LICENSE](LICENSE) 文件。
-
 ## 联系我们
 
-- 项目主页：https://github.com/your-org/FeatureHub
-- 问题反馈：https://github.com/your-org/FeatureHub/issues
-- 邮箱：featurehub@example.com
+- 项目主页：https://github.com/lunamage/FeatureHub
+- 问题反馈：https://github.com/lunamage/FeatureHub/issues
 
----
-
-**FeatureHub** - 让特征存储更智能、更经济！
