@@ -1,8 +1,5 @@
 package com.featurehub.common.domain;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
-import java.time.LocalDateTime;
-
 /**
  * 特征元数据实体
  * 记录特征Key的存储位置、访问信息等元数据
