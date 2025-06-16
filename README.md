@@ -107,21 +107,16 @@ FeatureHub/
 
 ```mermaid
 graph TD
-    A["客户端请求"] --> B["查询服务入口"]
-    B --> C["查询元数据"]
-    C --> D{"数据存储位置"}
-    D -->|热数据| E["Redis查询"]
-    D -->|冷数据| F["KeeWiDB查询"]
-    E --> G["返回结果"]
+    A[客户端请求] --> B[查询服务入口]
+    B --> C[查询元数据]
+    C --> D{数据存储位置}
+    D -->|热数据| E[Redis查询]
+    D -->|冷数据| F[KeeWiDB查询]
+    E --> G[返回结果]
     F --> G
-    G --> H["记录访问日志"]
-    H --> I["异步更新元数据"]
-    I --> J["返回响应"]
-    
-    style B fill:#e1f5fe
-    style E fill:#ffcdd2
-    style F fill:#c8e6c9
-    style G fill:#fff3e0
+    G --> H[记录访问日志]
+    H --> I[异步更新元数据]
+    I --> J[返回响应]
 ```
 
 #### 主要功能模块：
@@ -196,19 +191,15 @@ private final AtomicLong failedRequests = new AtomicLong(0);
 
 ```mermaid
 graph LR
-    A["元数据查询请求"] --> B["Redis缓存"]
-    B -->|命中| C["返回缓存数据"]
-    B -->|未命中| D["查询MySQL"]
-    D --> E["写入Redis缓存"]
-    E --> F["返回数据库数据"]
+    A[元数据查询请求] --> B[Redis缓存]
+    B -->|命中| C[返回缓存数据]
+    B -->|未命中| D[查询MySQL]
+    D --> E[写入Redis缓存]
+    E --> F[返回数据库数据]
     
-    G["元数据更新请求"] --> H["更新MySQL"]
-    H --> I["删除Redis缓存"]
-    I --> J["更新完成"]
-    
-    style B fill:#ffcdd2
-    style D fill:#c5e1a5
-    style H fill:#c5e1a5
+    G[元数据更新请求] --> H[更新MySQL]
+    H --> I[删除Redis缓存]
+    I --> J[更新完成]
 ```
 
 #### 主要功能模块：
@@ -272,32 +263,25 @@ public Map<String, Object> getStats(String storageType, String businessTag) {
 
 ```mermaid
 graph TB
-    A["定时任务触发"] --> B["分析访问模式"]
-    B --> C{"迁移策略判断"}
+    A[定时任务触发] --> B[分析访问模式]
+    B --> C{迁移策略判断}
     
-    C -->|热转冷| D["查找冷数据"]
-    C -->|冷转热| E["查找热数据"]
+    C -->|热转冷| D[查找冷数据]
+    C -->|冷转热| E[查找热数据]
     
-    D --> F["从Redis读取"]
-    F --> G["写入KeeWiDB"]
-    G --> H["更新元数据"]
-    H --> I["删除Redis数据"]
+    D --> F[从Redis读取]
+    F --> G[写入KeeWiDB]
+    G --> H[更新元数据]
+    H --> I[删除Redis数据]
     
-    E --> J["从KeeWiDB读取"]
-    J --> K["写入Redis"]
-    K --> L["更新元数据"]
-    L --> M["删除KeeWiDB数据"]
+    E --> J[从KeeWiDB读取]
+    J --> K[写入Redis]
+    K --> L[更新元数据]
+    L --> M[删除KeeWiDB数据]
     
-    I --> N["记录迁移日志"]
+    I --> N[记录迁移日志]
     M --> N
-    N --> O["发送事件通知"]
-    
-    style D fill:#e3f2fd
-    style E fill:#fff3e0
-    style F fill:#ffcdd2
-    style G fill:#c8e6c9
-    style J fill:#c8e6c9
-    style K fill:#ffcdd2
+    N --> O[发送事件通知]
 ```
 
 #### 主要功能模块：
@@ -371,32 +355,25 @@ private MigrationRecord executeHotToColdMigration(List<String> keys, MigrationRe
 
 ```mermaid
 graph TD
-    A["定时清理任务"] --> B{"清理类型"}
+    A[定时清理任务] --> B{清理类型}
     
-    B -->|过期数据清理| C["查询过期Key列表"]
-    B -->|孤儿数据清理| D["扫描存储中的Key"]
+    B -->|过期数据清理| C[查询过期Key列表]
+    B -->|孤儿数据清理| D[扫描存储中的Key]
     
-    C --> E["分批清理过期数据"]
-    E --> F["清理Redis中过期数据"]
-    F --> G["清理KeeWiDB中过期数据"]
-    G --> H["清理元数据表"]
+    C --> E[分批清理过期数据]
+    E --> F[清理Redis中过期数据]
+    F --> G[清理KeeWiDB中过期数据]
+    G --> H[清理元数据表]
     
-    D --> I["检查Key的元数据"]
-    I --> J{"是否存在元数据"}
-    J -->|不存在| K["标记为孤儿数据"]
-    J -->|存在| L["跳过"]
-    K --> M["删除孤儿数据"]
+    D --> I[检查Key的元数据]
+    I --> J{是否存在元数据}
+    J -->|不存在| K[标记为孤儿数据]
+    J -->|存在| L[跳过]
+    K --> M[删除孤儿数据]
     
-    H --> N["记录清理日志"]
+    H --> N[记录清理日志]
     M --> N
-    N --> O["发送清理报告"]
-    
-    style C fill:#e8f5e8
-    style D fill:#fff3e0
-    style F fill:#ffcdd2
-    style G fill:#c8e6c9
-    style H fill:#e1f5fe
-    style M fill:#fce4ec
+    N --> O[发送清理报告]
 ```
 
 #### 主要功能模块：
