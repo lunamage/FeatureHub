@@ -1,0 +1,133 @@
+server:
+  port: 8083
+  servlet:
+    context-path: /data-cleaner
+  tomcat:
+    max-threads: 200
+    min-spare-threads: 20
+
+spring:
+  application:
+    name: feature-data-cleaner
+  
+  # Redis配置
+  redis:
+    host: localhost
+    port: 6379
+    database: 0
+    password:
+    timeout: 2000ms
+    jedis:
+      pool:
+        max-active: 50
+        max-idle: 20
+        min-idle: 5
+        max-wait: 3000ms
+  
+  # Kafka配置
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: data-cleaner-group
+      auto-offset-reset: latest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      retries: 3
+      acks: all
+
+# 数据清理配置
+cleaner:
+  # 过期数据清理配置
+  expired-data:
+    enabled: true
+    schedule-cron: "0 0 2 * * ?"     # 每天凌晨2点执行
+    batch-size: 100                  # 批次大小
+    max-cleanup-size: 10000          # 单次最大清理数量
+  
+  # 孤儿数据清理配置
+  orphan-data:
+    enabled: true
+    schedule-cron: "0 0 3 * * SUN"   # 每周日凌晨3点执行
+    batch-size: 50                   # 批次大小
+    max-cleanup-size: 5000           # 单次最大清理数量
+    scan-batch-size: 1000            # 扫描批次大小
+  
+  # 重复数据清理配置
+  duplicate-data:
+    enabled: false
+    schedule-cron: "0 0 4 * * MON"   # 每周一凌晨4点执行
+    batch-size: 50
+    similarity-threshold: 0.95       # 相似度阈值
+  
+  # 通用配置
+  batch-interval-ms: 1000            # 批次间隔毫秒数
+  max-retry: 3                       # 最大重试次数
+  retry-delay-ms: 5000               # 重试间隔毫秒数
+  dry-run: false                     # 是否为试运行模式
+
+# KeeWiDB配置
+keewidb:
+  host: localhost
+  port: 6380
+  database: 0
+  password:
+  timeout: 5000
+  pool:
+    max-total: 50
+    max-idle: 20
+    min-idle: 5
+    max-wait-millis: 3000
+
+# 外部服务配置
+external-services:
+  metadata-service:
+    url: http://localhost:8081/metadata
+    timeout: 5000
+    max-retry: 3
+
+# 清理策略配置
+cleanup-policies:
+  # 数据保留策略
+  retention:
+    default-days: 30                 # 默认保留30天
+    business-tags:
+      critical: 90                   # 重要业务数据保留90天
+      standard: 30                   # 标准业务数据保留30天
+      temporary: 7                   # 临时数据保留7天
+  
+  # 存储优化策略
+  storage-optimization:
+    enabled: true
+    compress-threshold-mb: 10        # 超过10MB的数据考虑压缩
+    archive-threshold-days: 60       # 超过60天的数据考虑归档
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    com.featurehub.cleaner: DEBUG
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n"
+  file:
+    name: logs/data-cleaner.log
+    max-size: 100MB
+    max-history: 30
+
+# 管理端点配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true 

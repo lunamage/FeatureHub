@@ -1,0 +1,98 @@
+server:
+  port: 8081
+  servlet:
+    context-path: /metadata
+  tomcat:
+    max-threads: 200
+    min-spare-threads: 20
+
+spring:
+  application:
+    name: feature-metadata-service
+  
+  # 数据库配置
+  datasource:
+    url: jdbc:mysql://localhost:3306/feature_hub?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+  
+  # Redis配置
+  redis:
+    host: localhost
+    port: 6379
+    database: 0
+    password: 
+    timeout: 2000ms
+    jedis:
+      pool:
+        max-active: 50
+        max-idle: 20
+        min-idle: 5
+        max-wait: 3000ms
+  
+  # Jackson配置
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+
+# MyBatis配置
+mybatis:
+  type-aliases-package: com.featurehub.common.domain
+  configuration:
+    map-underscore-to-camel-case: true
+    use-generated-keys: true
+    default-fetch-size: 100
+    default-statement-timeout: 30
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    com.featurehub.metadata: DEBUG
+    com.featurehub.metadata.mapper: DEBUG
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n"
+  file:
+    name: logs/metadata-service.log
+    max-size: 100MB
+    max-history: 30
+
+# 管理端点配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# 自定义配置
+feature:
+  metadata:
+    cache:
+      ttl-minutes: 30
+      max-size: 10000
+    cleanup:
+      batch-size: 1000
+      schedule-cron: "0 0 2 * * ?"  # 每天凌晨2点执行清理
+    statistics:
+      reset-schedule-cron: "0 0 0 * * MON"  # 每周一凌晨重置访问计数 

@@ -13,10 +13,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -126,7 +126,11 @@ public class FeatureQueryService {
             // 4. 合并结果
             Map<String, FeatureQueryResponse.FeatureResult> allResults = new HashMap<>();
             for (CompletableFuture<Map<String, FeatureQueryResponse.FeatureResult>> future : futures) {
-                allResults.putAll(future.get());
+                try {
+                    allResults.putAll(future.get());
+                } catch (Exception e) {
+                    throw new RuntimeException("Error in concurrent query execution", e);
+                }
             }
 
             // 5. 构建响应结果

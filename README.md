@@ -89,8 +89,7 @@ FeatureHub 是一个高性能、低成本的特征中心存储系统，通过引
 FeatureHub/
 ├── feature-common/                 # 公共模块
 │   ├── domain/                     # 领域实体
-│   ├── dto/                        # 数据传输对象
-│   └── utils/                      # 工具类
+│   └── dto/                        # 数据传输对象
 ├── feature-query-service/          # 特征查询服务
 │   ├── controller/                 # REST控制器
 │   ├── service/                    # 业务逻辑
@@ -102,15 +101,13 @@ FeatureHub/
 │   ├── mapper/                     # 数据访问层
 │   └── config/                     # 配置类
 ├── feature-hot-cold-manager/       # 冷热数据管理服务
-│   ├── service/                    # 核心业务逻辑
-│   ├── strategy/                   # 分层策略
-│   └── scheduler/                  # 定时任务
+│   ├── controller/                 # REST控制器
+│   └── service/                    # 核心业务逻辑
 ├── feature-data-cleaner/           # 数据清理服务
 │   ├── service/                    # 清理逻辑
 │   └── scheduler/                  # 定时清理
 └── scripts/                        # 脚本文件
-    ├── init-db.sql                 # 数据库初始化
-    └── docker-compose.yml          # Docker编排文件
+    └── init-db.sql                 # 数据库初始化
 ```
 
 ## 快速开始

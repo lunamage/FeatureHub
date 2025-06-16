@@ -1,0 +1,111 @@
+server:
+  port: 8082
+  servlet:
+    context-path: /hot-cold-manager
+  tomcat:
+    max-threads: 200
+    min-spare-threads: 20
+
+spring:
+  application:
+    name: feature-hot-cold-manager
+  
+  # Redis配置
+  redis:
+    host: localhost
+    port: 6379
+    database: 0
+    password:
+    timeout: 2000ms
+    jedis:
+      pool:
+        max-active: 50
+        max-idle: 20
+        min-idle: 5
+        max-wait: 3000ms
+  
+  # Kafka配置
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: hot-cold-manager-group
+      auto-offset-reset: latest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      retries: 3
+      acks: all
+
+# 数据迁移配置
+migration:
+  # 热转冷配置
+  hot-to-cold:
+    enabled: true
+    schedule-cron: "0 */5 * * * ?"  # 每5分钟执行一次
+    access-threshold-days: 7        # 超过7天未访问则迁移到冷存储
+    max-migration-size: 1000        # 单次最大迁移数量
+  
+  # 冷转热配置
+  cold-to-hot:
+    enabled: true
+    schedule-cron: "0 */10 * * * ?" # 每10分钟执行一次
+    access-count-threshold: 10      # 访问次数超过10次则召回到热存储
+    recent-access-days: 1           # 最近1天内有访问的数据
+    max-recall-size: 500            # 单次最大召回数量
+  
+  # 批次处理配置
+  batch:
+    size: 50                        # 批次大小
+    interval-ms: 1000               # 批次间隔毫秒数
+    max-retry: 3                    # 最大重试次数
+    retry-delay-ms: 5000            # 重试间隔毫秒数
+
+# KeeWiDB配置
+keewidb:
+  host: localhost
+  port: 6380
+  database: 0
+  password:
+  timeout: 5000
+  pool:
+    max-total: 50
+    max-idle: 20
+    min-idle: 5
+    max-wait-millis: 3000
+
+# 外部服务配置
+external-services:
+  metadata-service:
+    url: http://localhost:8081/metadata
+    timeout: 5000
+    max-retry: 3
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    com.featurehub.hotcold: DEBUG
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n"
+  file:
+    name: logs/hot-cold-manager.log
+    max-size: 100MB
+    max-history: 30
+
+# 管理端点配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true 

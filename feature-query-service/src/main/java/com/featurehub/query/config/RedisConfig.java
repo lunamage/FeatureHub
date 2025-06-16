@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.jedis.JedisClientConfiguration;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
@@ -88,9 +89,12 @@ public class RedisConfig {
         }
         config.setDatabase(redisDatabase);
 
-        JedisConnectionFactory factory = new JedisConnectionFactory(config, jedisPoolConfig());
-        factory.afterPropertiesSet();
-        return factory;
+        JedisClientConfiguration clientConfig = JedisClientConfiguration.builder()
+                .usePooling()
+                .poolConfig(jedisPoolConfig())
+                .build();
+
+        return new JedisConnectionFactory(config, clientConfig);
     }
 
     /**
@@ -107,9 +111,12 @@ public class RedisConfig {
         }
         config.setDatabase(keewidbDatabase);
 
-        JedisConnectionFactory factory = new JedisConnectionFactory(config, jedisPoolConfig());
-        factory.afterPropertiesSet();
-        return factory;
+        JedisClientConfiguration clientConfig = JedisClientConfiguration.builder()
+                .usePooling()
+                .poolConfig(jedisPoolConfig())
+                .build();
+
+        return new JedisConnectionFactory(config, clientConfig);
     }
 
     /**
