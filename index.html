@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FeatureHub - 特征中心存储系统</title>
+    <meta http-equiv="refresh" content="0; url=docs/javadoc/">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 40px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            font-size: 1.2em;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+        .redirect-message {
+            font-size: 1.1em;
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+        }
+        .links {
+            margin-top: 30px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            margin: 10px;
+            text-decoration: none;
+            color: white;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        .features {
+            text-align: left;
+            margin: 30px 0;
+        }
+        .feature {
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏗️ FeatureHub</h1>
+        <div class="subtitle">特征中心存储系统</div>
+        
+        <div class="redirect-message">
+            🔄 页面正在自动跳转到API文档...
+            <br><small>如果未自动跳转，请点击下方链接</small>
+        </div>
+
+        <div class="features">
+            <div class="feature">🔥 <strong>热数据存储</strong> - Redis提供毫秒级查询</div>
+            <div class="feature">❄️ <strong>冷数据存储</strong> - KeeWiDB降低存储成本</div>
+            <div class="feature">🔄 <strong>智能迁移</strong> - 自动化冷热数据分层</div>
+            <div class="feature">📊 <strong>统一查询</strong> - 透明的存储路由机制</div>
+        </div>
+
+        <div class="links">
+            <a href="docs/javadoc/" class="btn">📚 查看API文档</a>
+            <a href="docs/README.md" class="btn">📖 使用说明</a>
+            <a href="https://github.com/lunamage/FeatureHub" class="btn">💻 源代码</a>
+        </div>
+    </div>
+
+    <script>
+        // 2秒后自动跳转（给用户时间看到页面内容）
+        setTimeout(function() {
+            window.location.href = 'docs/javadoc/';
+        }, 2000);
+    </script>
+</body>
+</html> 
