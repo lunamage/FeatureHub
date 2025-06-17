@@ -1,0 +1,44 @@
+name: Update JavaDoc
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '*/src/main/java/**'
+      - 'pom.xml'
+
+jobs:
+  update-javadoc:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Set up JDK 8
+      uses: actions/setup-java@v3
+      with:
+        java-version: '8'
+        distribution: 'temurin'
+    
+    - name: Generate JavaDoc
+      run: |
+        javadoc -d docs/javadoc \
+          -sourcepath "feature-common/src/main/java:feature-query-service/src/main/java:feature-metadata-service/src/main/java:feature-hot-cold-manager/src/main/java:feature-data-cleaner/src/main/java" \
+          -subpackages com.featurehub \
+          -windowtitle "FeatureHub API Documentation" \
+          -doctitle "FeatureHub - 特征中心存储系统 API 文档" \
+          -author -version -use -encoding UTF-8 -charset UTF-8 -docencoding UTF-8 \
+          -Xdoclint:none
+    
+    - name: Commit updated JavaDoc
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add docs/javadoc/
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "Auto-update JavaDoc documentation"
+          git push
+        fi 
