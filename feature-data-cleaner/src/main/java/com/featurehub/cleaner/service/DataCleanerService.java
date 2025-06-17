@@ -19,7 +19,69 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 数据清理核心服务
- * 负责清理过期、无效和冗余的特征数据
+ * <p>
+ * 负责系统中过期、无效和冗余特征数据的自动清理，确保存储空间的高效利用和系统性能的持续优化。
+ * 提供多种清理策略，支持定时清理和手动触发，保障数据质量和系统健康。
+ * </p>
+ * 
+ * <h3>核心功能:</h3>
+ * <ul>
+ *   <li><strong>过期数据清理</strong>: 自动删除超过生命周期的特征数据</li>
+ *   <li><strong>孤儿数据清理</strong>: 清理没有对应元数据的数据记录</li>
+ *   <li><strong>冗余数据清理</strong>: 删除重复或不一致的数据</li>
+ *   <li><strong>定时调度</strong>: 基于Cron表达式的自动清理任务</li>
+ *   <li><strong>手动清理</strong>: 支持按需触发的清理操作</li>
+ * </ul>
+ * 
+ * <h3>清理策略:</h3>
+ * <ul>
+ *   <li><strong>TTL清理</strong>: 基于数据过期时间的自动清理</li>
+ *   <li><strong>LRU清理</strong>: 基于最近最少使用算法的清理</li>
+ *   <li><strong>大小清理</strong>: 当存储空间不足时的紧急清理</li>
+ *   <li><strong>业务清理</strong>: 基于业务规则的定制化清理</li>
+ * </ul>
+ * 
+ * <h3>调度时间:</h3>
+ * <ul>
+ *   <li><strong>过期数据清理</strong>: 每天凌晨2点执行，避开业务高峰</li>
+ *   <li><strong>孤儿数据清理</strong>: 每周日凌晨3点执行，深度清理</li>
+ *   <li><strong>紧急清理</strong>: 存储使用率超过阈值时自动触发</li>
+ * </ul>
+ * 
+ * <h3>安全保障:</h3>
+ * <ul>
+ *   <li><strong>干运行模式</strong>: 支持预览清理结果，避免误删</li>
+ *   <li><strong>分批处理</strong>: 避免大量删除操作影响系统性能</li>
+ *   <li><strong>操作日志</strong>: 详细记录所有清理操作</li>
+ *   <li><strong>回滚机制</strong>: 重要数据清理前的备份保护</li>
+ * </ul>
+ * 
+ * <h3>性能特性:</h3>
+ * <ul>
+ *   <li>批量删除操作，提升清理效率</li>
+ *   <li>智能限流，避免影响在线服务</li>
+ *   <li>并行清理不同存储引擎</li>
+ *   <li>实时监控清理进度和结果</li>
+ * </ul>
+ * 
+ * <h3>使用示例:</h3>
+ * <pre>{@code
+ * // 手动触发过期数据清理
+ * List<String> expiredKeys = Arrays.asList("expired_key1", "expired_key2");
+ * CleanupRecord record = cleanerService.triggerCleanup("EXPIRED_DATA", expiredKeys);
+ * 
+ * // 查看清理结果
+ * System.out.println("清理状态: " + record.getStatus());
+ * System.out.println("清理数量: " + record.getCleanedCount());
+ * System.out.println("失败数量: " + record.getFailedCount());
+ * }</pre>
+ * 
+ * @author FeatureHub Team
+ * @version 1.0.0
+ * @since 1.0.0
+ * @see CleanupRecord
+ * @see com.featurehub.cleaner.config.CleanerConfig
+ * @see com.featurehub.cleaner.publisher.CleanupEventPublisher
  */
 @Service
 public class DataCleanerService {

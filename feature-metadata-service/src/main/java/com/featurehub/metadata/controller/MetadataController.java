@@ -17,7 +17,34 @@ import java.util.Map;
 
 /**
  * 元数据管理控制器
- * 提供元数据的CRUD操作接口
+ * <p>
+ * 提供特征元数据的RESTful API接口，包括CRUD操作、批量处理、统计查询和数据清理功能。
+ * 所有接口都遵循RESTful设计规范，支持标准的HTTP状态码和错误处理。
+ * </p>
+ * 
+ * <h3>主要接口:</h3>
+ * <ul>
+ *   <li>GET /api/v1/metadata/{key} - 获取单个元数据</li>
+ *   <li>POST /api/v1/metadata/batch - 批量获取元数据</li>
+ *   <li>POST /api/v1/metadata - 创建或更新元数据</li>
+ *   <li>PUT /api/v1/metadata/{key} - 更新指定元数据</li>
+ *   <li>DELETE /api/v1/metadata/{key} - 删除元数据</li>
+ *   <li>GET /api/v1/metadata/stats - 获取统计信息</li>
+ *   <li>POST /api/v1/metadata/cleanup - 清理过期数据</li>
+ * </ul>
+ * 
+ * <h3>错误处理:</h3>
+ * <ul>
+ *   <li>400 Bad Request - 请求参数错误</li>
+ *   <li>404 Not Found - 资源不存在</li>
+ *   <li>500 Internal Server Error - 服务器内部错误</li>
+ * </ul>
+ * 
+ * @author FeatureHub Team
+ * @version 1.0.0
+ * @since 1.0.0
+ * @see MetadataService
+ * @see FeatureMetadata
  */
 @RestController
 @RequestMapping("/api/v1/metadata")
@@ -31,7 +58,37 @@ public class MetadataController {
 
     /**
      * 获取单个元数据
-     * GET /api/v1/metadata/{key}
+     * <p>
+     * 根据特征Key获取对应的元数据信息。如果数据存在于缓存中，将直接从缓存返回；
+     * 否则从数据库查询并更新缓存。
+     * </p>
+     * 
+     * <h4>请求示例:</h4>
+     * <pre>
+     * GET /api/v1/metadata/user:123:profile
+     * </pre>
+     * 
+     * <h4>响应示例:</h4>
+     * <pre>{@code
+     * {
+     *   "keyName": "user:123:profile",
+     *   "storageType": "REDIS",
+     *   "accessCount": 100,
+     *   "lastAccessTime": 1634567890000,
+     *   "dataSize": 1024
+     * }
+     * }</pre>
+     * 
+     * @param key 特征Key，不能为空或空白字符串
+     * @return ResponseEntity 包含元数据信息或404状态码
+     *         <ul>
+     *           <li>200 OK - 成功返回元数据</li>
+     *           <li>404 Not Found - 元数据不存在</li>
+     *           <li>500 Internal Server Error - 服务器错误</li>
+     *         </ul>
+     * 
+     * @apiNote 该接口会更新元数据的访问统计信息
+     * @see MetadataService#getMetadata(String)
      */
     @GetMapping("/{key}")
     public ResponseEntity<FeatureMetadata> getMetadata(@PathVariable @NotBlank String key) {
@@ -50,7 +107,45 @@ public class MetadataController {
 
     /**
      * 批量获取元数据
+     * <p>
+     * 根据提供的特征Key列表批量获取对应的元数据信息。
+     * 采用缓存优先策略，优先从缓存获取，缓存未命中的数据再从数据库查询。
+     * </p>
+     * 
+     * <h4>请求示例:</h4>
+     * <pre>{@code
      * POST /api/v1/metadata/batch
+     * Content-Type: application/json
+     * 
+     * {
+     *   "keys": ["user:123:profile", "user:123:preference"]
+     * }
+     * }</pre>
+     * 
+     * <h4>响应示例:</h4>
+     * <pre>{@code
+     * {
+     *   "metadata": [
+     *     {
+     *       "keyName": "user:123:profile",
+     *       "storageType": "REDIS",
+     *       "accessCount": 100
+     *     }
+     *   ],
+     *   "total": 1
+     * }
+     * }</pre>
+     * 
+     * @param request 包含keys字段的请求体，keys不能为空
+     * @return ResponseEntity 包含元数据列表和总数
+     *         <ul>
+     *           <li>200 OK - 成功返回元数据列表</li>
+     *           <li>400 Bad Request - 请求参数错误</li>
+     *           <li>500 Internal Server Error - 服务器错误</li>
+     *         </ul>
+     * 
+     * @apiNote 不存在的Key不会包含在响应结果中
+     * @see MetadataService#getBatchMetadata(List)
      */
     @PostMapping("/batch")
     public ResponseEntity<Map<String, Object>> getBatchMetadata(@RequestBody Map<String, Object> request) {
@@ -77,7 +172,35 @@ public class MetadataController {
 
     /**
      * 创建或更新元数据
+     * <p>
+     * 如果元数据不存在则创建新记录，如果已存在则更新现有记录。
+     * 该操作会自动更新updateTime字段，对于新创建的记录还会设置createTime。
+     * </p>
+     * 
+     * <h4>请求示例:</h4>
+     * <pre>{@code
      * POST /api/v1/metadata
+     * Content-Type: application/json
+     * 
+     * {
+     *   "keyName": "user:123:profile",
+     *   "storageType": "REDIS",
+     *   "dataSize": 1024,
+     *   "businessTag": "user_profile"
+     * }
+     * }</pre>
+     * 
+     * @param metadata 元数据对象，必须包含keyName字段
+     * @return ResponseEntity 表示操作结果
+     *         <ul>
+     *           <li>201 Created - 成功创建新元数据</li>
+     *           <li>200 OK - 成功更新现有元数据</li>
+     *           <li>400 Bad Request - 请求数据无效</li>
+     *           <li>500 Internal Server Error - 服务器错误</li>
+     *         </ul>
+     * 
+     * @apiNote 操作完成后会更新缓存中的数据
+     * @see MetadataService#upsertMetadata(FeatureMetadata)
      */
     @PostMapping
     public ResponseEntity<Void> upsertMetadata(@Valid @RequestBody FeatureMetadata metadata) {
@@ -95,8 +218,35 @@ public class MetadataController {
     }
 
     /**
-     * 更新元数据
-     * PUT /api/v1/metadata/{key}
+     * 更新指定的元数据
+     * <p>
+     * 更新指定特征Key的元数据信息。与upsert接口不同，此接口只更新现有记录，
+     * 如果记录不存在将返回404错误。
+     * </p>
+     * 
+     * <h4>请求示例:</h4>
+     * <pre>{@code
+     * PUT /api/v1/metadata/user:123:profile
+     * Content-Type: application/json
+     * 
+     * {
+     *   "storageType": "KEEWIDB",
+     *   "businessTag": "user_profile_archived"
+     * }
+     * }</pre>
+     * 
+     * @param key 特征Key，不能为空，必须与请求体中的keyName一致
+     * @param metadata 要更新的元数据对象
+     * @return ResponseEntity 表示更新结果
+     *         <ul>
+     *           <li>200 OK - 成功更新元数据</li>
+     *           <li>404 Not Found - 元数据不存在</li>
+     *           <li>400 Bad Request - 请求数据无效</li>
+     *           <li>500 Internal Server Error - 服务器错误</li>
+     *         </ul>
+     * 
+     * @apiNote 路径参数中的key会覆盖请求体中的keyName
+     * @see MetadataService#updateMetadata(FeatureMetadata)
      */
     @PutMapping("/{key}")
     public ResponseEntity<Void> updateMetadata(@PathVariable @NotBlank String key, 

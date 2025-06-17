@@ -23,8 +23,65 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
- * 数据迁移核心服务
- * 负责冷热数据之间的智能迁移策略
+ * 冷热数据迁移核心服务
+ * <p>
+ * 负责特征数据在Redis（热存储）和KeeWiDB（冷存储）之间的智能迁移。
+ * 基于访问频率、时间衰减等策略，自动优化数据存储分布，实现成本与性能的最佳平衡。
+ * </p>
+ * 
+ * <h3>核心功能:</h3>
+ * <ul>
+ *   <li><strong>热转冷迁移</strong>: 将低频访问的数据从Redis迁移到KeeWiDB</li>
+ *   <li><strong>冷转热召回</strong>: 将高频访问的数据从KeeWiDB召回到Redis</li>
+ *   <li><strong>智能调度</strong>: 基于访问模式的自动化迁移策略</li>
+ *   <li><strong>批量处理</strong>: 高效的批量迁移机制</li>
+ *   <li><strong>状态追踪</strong>: 完整的迁移过程监控和记录</li>
+ * </ul>
+ * 
+ * <h3>迁移策略:</h3>
+ * <ul>
+ *   <li><strong>时间衰减</strong>: 基于最后访问时间的自动迁移</li>
+ *   <li><strong>访问频率</strong>: 根据访问次数判断数据热度</li>
+ *   <li><strong>数据大小</strong>: 优先迁移大容量低频数据</li>
+ *   <li><strong>业务标签</strong>: 支持按业务维度的差异化策略</li>
+ * </ul>
+ * 
+ * <h3>调度配置:</h3>
+ * <ul>
+ *   <li><strong>热转冷</strong>: 每5分钟执行一次，处理过期热数据</li>
+ *   <li><strong>冷转热</strong>: 每10分钟执行一次，召回活跃冷数据</li>
+ *   <li><strong>批次大小</strong>: 默认100个Key/批次，可配置调整</li>
+ *   <li><strong>限流控制</strong>: 避免对存储系统造成冲击</li>
+ * </ul>
+ * 
+ * <h3>性能优化:</h3>
+ * <ul>
+ *   <li>异步并行处理，不阻塞查询服务</li>
+ *   <li>批量操作减少网络开销</li>
+ *   <li>智能重试机制处理临时故障</li>
+ *   <li>详细的性能指标监控</li>
+ * </ul>
+ * 
+ * <h3>使用示例:</h3>
+ * <pre>{@code
+ * // 手动触发迁移
+ * MigrationTask task = new MigrationTask();
+ * task.setTaskType("HOT_TO_COLD");
+ * task.setKeys(Arrays.asList("key1", "key2", "key3"));
+ * MigrationRecord record = migrationService.triggerMigration(task);
+ * 
+ * // 查看迁移状态
+ * System.out.println("迁移状态: " + record.getStatus());
+ * System.out.println("处理Key数: " + record.getTotalKeys());
+ * }</pre>
+ * 
+ * @author FeatureHub Team
+ * @version 1.0.0
+ * @since 1.0.0
+ * @see MigrationTask
+ * @see MigrationRecord
+ * @see MigrationStatus
+ * @see com.featurehub.hotcold.config.MigrationConfig
  */
 @Service
 public class MigrationService {
