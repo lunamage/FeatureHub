@@ -94,6 +94,17 @@ public interface FeatureMetadataMapper {
     int deleteByKey(@Param("keyName") String keyName);
 
     /**
+     * 批量删除指定Key的元数据
+     */
+    @Delete("<script>" +
+            "DELETE FROM feature_metadata WHERE key_name IN " +
+            "<foreach collection='keys' item='key' open='(' separator=',' close=')'>" +
+            "#{key}" +
+            "</foreach>" +
+            "</script>")
+    int deleteBatchByKeys(@Param("keys") List<String> keys);
+
+    /**
      * 统计各存储类型的数量
      */
     @Select("SELECT storage_type as storageType, COUNT(*) as count " +

@@ -15,6 +15,7 @@ import org.springframework.util.StringUtils;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import org.springframework.data.redis.core.RedisCallback;
 
 /**
  * 特征元数据管理服务
@@ -77,6 +78,8 @@ public class MetadataService {
     
     private static final String CACHE_PREFIX = "metadata:";
     private static final int CACHE_TTL_MINUTES = 30;
+    private static final int MAX_BATCH_SIZE = 1000;  // 批量操作最大数量限制
+    private static final int MAX_KEY_LENGTH = 255;   // Key最大长度限制
 
     @Autowired
     private FeatureMetadataMapper metadataMapper;
@@ -112,24 +115,72 @@ public class MetadataService {
      * @see #getBatchMetadata(List) 批量查询方法
      */
     public FeatureMetadata getMetadata(String key) {
+        // 参数验证
+        validateKey(key);
+        
         try {
             // 1. 先从缓存获取
             FeatureMetadata cached = getFromCache(key);
             if (cached != null) {
+                logger.debug("Cache hit for key: {}", key);
                 return cached;
             }
 
             // 2. 从数据库获取
+            logger.debug("Cache miss for key: {}, querying database", key);
             FeatureMetadata metadata = metadataMapper.selectByKey(key);
             if (metadata != null) {
                 // 3. 写入缓存
                 putToCache(key, metadata);
+                logger.debug("Retrieved metadata from database and cached for key: {}", key);
+            } else {
+                logger.debug("No metadata found for key: {}", key);
             }
 
             return metadata;
         } catch (Exception e) {
             logger.error("Error getting metadata for key: {}", key, e);
-            throw new RuntimeException("Failed to get metadata", e);
+            throw new RuntimeException("Failed to get metadata for key: " + key, e);
+        }
+    }
+
+    /**
+     * 验证Key参数
+     */
+    private void validateKey(String key) {
+        if (!StringUtils.hasText(key)) {
+            throw new IllegalArgumentException("Key cannot be null or empty");
+        }
+        if (key.length() > MAX_KEY_LENGTH) {
+            throw new IllegalArgumentException("Key length cannot exceed " + MAX_KEY_LENGTH + " characters");
+        }
+    }
+
+    /**
+     * 验证Keys列表参数
+     */
+    private void validateKeys(List<String> keys) {
+        if (keys == null) {
+            throw new IllegalArgumentException("Keys list cannot be null");
+        }
+        if (keys.size() > MAX_BATCH_SIZE) {
+            throw new IllegalArgumentException("Batch size cannot exceed " + MAX_BATCH_SIZE);
+        }
+        for (String key : keys) {
+            validateKey(key);
+        }
+    }
+
+    /**
+     * 验证元数据对象
+     */
+    private void validateMetadata(FeatureMetadata metadata) {
+        if (metadata == null) {
+            throw new IllegalArgumentException("Metadata cannot be null");
+        }
+        validateKey(metadata.getKeyName());
+        if (metadata.getStorageType() == null) {
+            throw new IllegalArgumentException("StorageType cannot be null");
         }
     }
 
@@ -171,38 +222,54 @@ public class MetadataService {
      * @see #getMetadata(String) 单个查询方法
      */
     public List<FeatureMetadata> getBatchMetadata(List<String> keys) {
-        if (keys == null || keys.isEmpty()) {
+        // 参数验证
+        validateKeys(keys);
+        
+        if (keys.isEmpty()) {
             return new ArrayList<>();
         }
 
+        // 去重处理，避免重复查询
+        List<String> uniqueKeys = keys.stream().distinct().collect(Collectors.toList());
+        
         try {
+            long startTime = System.currentTimeMillis();
+            
             // 1. 批量从缓存获取
-            Map<String, FeatureMetadata> cachedResults = batchGetFromCache(keys);
+            Map<String, FeatureMetadata> cachedResults = batchGetFromCache(uniqueKeys);
+            logger.debug("Cache batch query: {} hits out of {} keys", cachedResults.size(), uniqueKeys.size());
             
             // 2. 找出缓存中没有的key
-            List<String> missedKeys = keys.stream()
+            List<String> missedKeys = uniqueKeys.stream()
                     .filter(key -> !cachedResults.containsKey(key))
                     .collect(Collectors.toList());
 
             // 3. 从数据库批量获取缺失的数据
             if (!missedKeys.isEmpty()) {
+                logger.debug("Querying database for {} missed keys", missedKeys.size());
                 List<FeatureMetadata> dbResults = metadataMapper.selectByKeys(missedKeys);
                 
-                // 4. 批量写入缓存
+                // 4. 批量写入缓存 - 异步处理以提升性能
+                batchPutToCache(dbResults);
+                
                 for (FeatureMetadata metadata : dbResults) {
                     cachedResults.put(metadata.getKeyName(), metadata);
-                    putToCache(metadata.getKeyName(), metadata);
                 }
             }
 
             // 5. 按原始顺序返回结果
-            return keys.stream()
+            List<FeatureMetadata> results = keys.stream()
                     .map(cachedResults::get)
                     .filter(Objects::nonNull)
                     .collect(Collectors.toList());
+            
+            long endTime = System.currentTimeMillis();
+            logger.debug("Batch metadata query completed: {} results in {}ms", results.size(), endTime - startTime);
+            
+            return results;
 
         } catch (Exception e) {
-            logger.error("Error getting batch metadata for keys: {}", keys, e);
+            logger.error("Error getting batch metadata for {} keys", keys.size(), e);
             throw new RuntimeException("Failed to get batch metadata", e);
         }
     }
@@ -241,33 +308,61 @@ public class MetadataService {
      */
     @Transactional
     public boolean upsertMetadata(FeatureMetadata metadata) {
+        // 参数验证
+        validateMetadata(metadata);
+        
+        String keyName = metadata.getKeyName();
+        long currentTime = System.currentTimeMillis();
+        
         try {
-            metadata.setUpdateTime(System.currentTimeMillis());
+            metadata.setUpdateTime(currentTime);
             
-            FeatureMetadata existing = metadataMapper.selectByKey(metadata.getKeyName());
+            FeatureMetadata existing = metadataMapper.selectByKey(keyName);
             boolean isNew;
+            int affectedRows;
             
             if (existing == null) {
                 // 创建新记录
-                metadata.setCreateTime(System.currentTimeMillis());
-                metadataMapper.insert(metadata);
+                metadata.setCreateTime(currentTime);
+                affectedRows = metadataMapper.insert(metadata);
                 isNew = true;
-                logger.info("Created new metadata for key: {}", metadata.getKeyName());
+                
+                if (affectedRows == 0) {
+                    throw new RuntimeException("Failed to insert metadata record");
+                }
+                
+                logger.info("Created new metadata for key: {}", keyName);
             } else {
-                // 更新现有记录
+                // 更新现有记录，保留原有的创建时间
                 metadata.setCreateTime(existing.getCreateTime());
-                metadataMapper.updateByKey(metadata);
+                affectedRows = metadataMapper.updateByKey(metadata);
                 isNew = false;
-                logger.info("Updated metadata for key: {}", metadata.getKeyName());
+                
+                if (affectedRows == 0) {
+                    logger.warn("No rows updated for key: {}, record may have been deleted", keyName);
+                    return false;
+                }
+                
+                logger.info("Updated metadata for key: {}", keyName);
             }
 
-            // 更新缓存
-            putToCache(metadata.getKeyName(), metadata);
+            // 更新缓存 - 分离缓存错误处理，避免影响主业务流程
+            try {
+                putToCache(keyName, metadata);
+            } catch (Exception cacheException) {
+                logger.warn("Failed to update cache for key: {}, but database operation succeeded", keyName, cacheException);
+            }
             
             return isNew;
         } catch (Exception e) {
-            logger.error("Error upserting metadata for key: {}", metadata.getKeyName(), e);
-            throw new RuntimeException("Failed to upsert metadata", e);
+            logger.error("Error upserting metadata for key: {}", keyName, e);
+            // 缓存失败时尝试清理
+            try {
+                removeFromCache(keyName);
+            } catch (Exception cleanupException) {
+                logger.warn("Failed to cleanup cache for key: {}", keyName, cleanupException);
+            }
+            throw new RuntimeException("Failed to upsert metadata for key: " + keyName, e);
         }
     }
 
@@ -428,8 +523,26 @@ public class MetadataService {
      */
     @Transactional
     public int cleanupExpiredMetadata() {
+        return cleanupExpiredMetadata(1000); // 默认批次大小
+    }
+    
+    /**
+     * 批量清理过期元数据
+     * 
+     * @param batchSize 批次大小，避免一次处理过多数据
+     * @return 清理的记录数量
+     */
+    @Transactional
+    public int cleanupExpiredMetadata(int batchSize) {
+        if (batchSize <= 0) {
+            throw new IllegalArgumentException("Batch size must be positive");
+        }
+        
         try {
             long currentTime = System.currentTimeMillis();
+            long startTime = System.currentTimeMillis();
+            
+            // 分批获取过期的Key，避免内存问题
             List<String> expiredKeys = metadataMapper.selectExpiredKeys(currentTime);
             
             if (expiredKeys.isEmpty()) {
@@ -437,16 +550,38 @@ public class MetadataService {
                 return 0;
             }
             
-            // 批量删除过期数据
-            int deleted = metadataMapper.deleteExpiredKeys(currentTime);
+            logger.info("Found {} expired metadata records, starting cleanup", expiredKeys.size());
             
-            // 批量删除缓存
-            for (String key : expiredKeys) {
-                removeFromCache(key);
+            int totalDeleted = 0;
+            
+            // 分批处理
+            for (int i = 0; i < expiredKeys.size(); i += batchSize) {
+                int endIndex = Math.min(i + batchSize, expiredKeys.size());
+                List<String> batchKeys = expiredKeys.subList(i, endIndex);
+                
+                try {
+                    // 批量删除数据库记录
+                    int batchDeleted = metadataMapper.deleteBatchByKeys(batchKeys);
+                    totalDeleted += batchDeleted;
+                    
+                    // 批量删除缓存
+                    batchRemoveFromCache(batchKeys);
+                    
+                    logger.debug("Processed batch {}/{}: {} keys, {} deleted", 
+                               (i / batchSize + 1), ((expiredKeys.size() - 1) / batchSize + 1), 
+                               batchKeys.size(), batchDeleted);
+                               
+                } catch (Exception batchException) {
+                    logger.error("Error processing batch starting at index {}", i, batchException);
+                    // 继续处理下一批，不中断整个清理过程
+                }
             }
             
-            logger.info("Cleaned up {} expired metadata records", deleted);
-            return deleted;
+            long endTime = System.currentTimeMillis();
+            logger.info("Cleanup completed: {} expired metadata records deleted in {}ms", 
+                       totalDeleted, endTime - startTime);
+            
+            return totalDeleted;
         } catch (Exception e) {
             logger.error("Error cleaning up expired metadata", e);
             throw new RuntimeException("Failed to cleanup expired metadata", e);
@@ -547,6 +682,40 @@ public class MetadataService {
     }
 
     /**
+     * 批量写入缓存
+     */
+    private void batchPutToCache(List<FeatureMetadata> metadataList) {
+        if (metadataList == null || metadataList.isEmpty()) {
+            return;
+        }
+        
+        try {
+            Map<String, String> batchData = new HashMap<>();
+            for (FeatureMetadata metadata : metadataList) {
+                String cacheKey = CACHE_PREFIX + metadata.getKeyName();
+                String value = objectMapper.writeValueAsString(metadata);
+                batchData.put(cacheKey, value);
+            }
+            
+            // 使用Redis Pipeline进行批量操作
+            redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+                for (Map.Entry<String, String> entry : batchData.entrySet()) {
+                    connection.setEx(entry.getKey().getBytes(), CACHE_TTL_MINUTES * 60L, entry.getValue().getBytes());
+                }
+                return null;
+            });
+            
+            logger.debug("Batch cached {} metadata records", metadataList.size());
+        } catch (Exception e) {
+            logger.warn("Error batch putting metadata to cache", e);
+            // 降级到单个写入
+            for (FeatureMetadata metadata : metadataList) {
+                putToCache(metadata.getKeyName(), metadata);
+            }
+        }
+    }
+
+    /**
      * 从缓存删除
      */
     private void removeFromCache(String key) {
@@ -555,6 +724,30 @@ public class MetadataService {
             redisTemplate.delete(cacheKey);
         } catch (Exception e) {
             logger.warn("Error removing metadata from cache for key: {}", key, e);
+        }
+    }
+    
+    /**
+     * 批量从缓存删除
+     */
+    private void batchRemoveFromCache(List<String> keys) {
+        if (keys == null || keys.isEmpty()) {
+            return;
+        }
+        
+        try {
+            List<String> cacheKeys = keys.stream()
+                    .map(key -> CACHE_PREFIX + key)
+                    .collect(Collectors.toList());
+            
+            Long deletedCount = redisTemplate.delete(cacheKeys);
+            logger.debug("Batch removed {} cache entries", deletedCount);
+        } catch (Exception e) {
+            logger.warn("Error batch removing metadata from cache", e);
+            // 降级到单个删除
+            for (String key : keys) {
+                removeFromCache(key);
+            }
         }
     }
 } 
